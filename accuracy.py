@@ -26,8 +26,8 @@ class Computer(object):
 		gt_cluser_sizes = self.gt_cluser_sizes = np.zeros((k), dtype=np.int)
 		in_cluser_sizes = self.in_cluser_sizes = np.zeros((k), dtype=np.int)
 		intersection = self.intersection = np.zeros((k, k), dtype=np.int)
-		for i, gt_lbl in self.gt_labels:
-			in_lbl = inferred_labels[i]:
+		for i, gt_lbl in enumerate(self.gt_labels):
+			in_lbl = inferred_labels[i]
 			intersection[gt_lbl, in_lbl] += 1
 			gt_cluser_sizes[gt_lbl] += 1
 			in_cluser_sizes[in_lbl] += 1
@@ -37,9 +37,22 @@ class Computer(object):
 		size_sums = gt_cluser_sizes + in_cluser_sizes.T
 		self.cost = size_sums - (2*intersection)
 		# Run Hungarian algorithm
-		self.mapping = scipy.optimize.linear_sum_assignment( cost )
+		self.mapping = scipy.optimize.linear_sum_assignment( self.cost )
 		# Compute ACC: sum of intersections over n
 		n = len(inferred_labels)
-		n_correct_assignments = intersection(self.mapping).sum()
+		n_correct_assignments = intersection[self.mapping].sum()
 		acc = n_correct_assignments / n
 		return acc
+
+def test():
+	gt_labels = np.array([1,1,2,3,4,0,1,0])
+	in_labels = np.array([2,2,2,1,4,0,2,0])
+	comp = Computer(5, gt_labels)
+	acc = comp.run(in_labels)
+	print(comp.cost)
+	print(comp.mapping)
+	print('acc', acc)
+	assert acc == 7/8, acc
+
+if __name__ == '__main__':
+	test()
