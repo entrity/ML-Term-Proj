@@ -11,10 +11,12 @@ def new():
 	return net
 
 def load(fpath):
-	data = pth.load(fpath)
+	data = torch.load(fpath)
 	resnet18 = modules.resnet18(pretrained=False)
 	net = Net(resnet18)
-	net.load_state_dict( dump['model_state_dict'] )
+	logging.info('Loading model state dict...')
+	net.load_state_dict( data['model_state_dict'] )
+	logging.info('Model state dict loaded.')
 	return net
 
 class Net(nn.Module):
