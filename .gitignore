@@ -1,0 +1,7 @@
+ml-term-proj.sublime-*
+*.pyc
+*.tmp
+*.npy
+*.pth
+tmp
+__pycache__
