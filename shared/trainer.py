@@ -1,8 +1,10 @@
 import torch, torch.nn as nn, numpy as np
 from torch.utils.data import DataLoader
+from sklearn.cluster import KMeans
 import sys, os, logging, datetime
 from collections import deque
 import shared.kl_loss as kl_loss
+import shared.accuracy
 import data.dataset
 
 class Trainer(object):
@@ -27,6 +29,8 @@ class Trainer(object):
 		self.test_losses  = []
 		self.train_losses = []
 		self.batch_losses = deque(maxlen=1000)
+		self.log_epoch_loss()
+		if self.testloader is not None: self.test()
 		for self.epoch_i in range(epoch_i, n_epochs):
 			self.train_epoch()
 			if self.epoch_i % self.save_every == 0:
@@ -55,21 +59,27 @@ class Trainer(object):
 		if self.print_every and self.iter_i % self.print_every == 0:
 			self.print('TRAIN', loss.item(), tictoc)
 
-	def _loss(self, batch):
+	def _loss(self, batch, do_acc=False):
 		X = batch['X'].cuda()
 		embedding = self.net(X)
-		loss = self.loss_fn(embedding, self.k_clusters)
+		kmeans = KMeans(self.k_clusters)
+		kmeans.fit(embedding.data.cpu().squeeze(2).squeeze(2).numpy())
+		loss = self.loss_fn(embedding, kmeans)
+		if do_acc:
+			acc_calc = shared.accuracy.Computer(self.k_clusters, batch['y'])
+			self.acc = acc_calc.run(kmeans.labels_)
+		return loss
 
 	def _loss_for_dataloader(self, dataloader, mode):
 		self.tic()
 		self.net.eval()
 		self.net.zero_grad()
 		sizes  = np.array([len(batch) for batch in dataloader])
-		losses = np.array([self._loss(batch).item() for batch in dataloader])
+		losses = np.array([self._loss(batch, True).item() for batch in dataloader])
 		loss   = np.mean(losses / sizes)
 		self.net.train()
 		tictoc = self.toc()
-		self.print(mode, loss, tictoc)
+		self.print(mode, loss, tictoc, self.acc)
 		return loss
 
 	def test(self):
@@ -91,8 +101,11 @@ class Trainer(object):
 	def toc(self):
 		return (datetime.datetime.now() - self._tics.pop())
 
-	def print(self, mode, loss, tictoc):
-		logging.info('%6s  %4d:%-7d %e %s' % (mode, self.epoch_i, self.iter_i, loss, str(tictoc)))
+	def print(self, mode, loss, tictoc, acc=None):
+		if acc is not None:
+			logging.info('%6s  %4d:%-7d %f %e %s' % (mode, self.epoch_i, self.iter_i, acc, loss, str(tictoc)))
+		else:
+			logging.info('%6s  %4d:%-7d %e %s' % (mode, self.epoch_i, self.iter_i, loss, str(tictoc)))
 
 	def save_model(self, suffix=None):
 		if suffix is not None:
