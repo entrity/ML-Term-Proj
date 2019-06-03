@@ -9,12 +9,12 @@
 model = primary.net.new()
 ```
 
-1. Get STL-10 dataset
+1. Download STL-10 dataset
 ```bash
 python data/stl10_input.py
 ```
 
-1. Partition dataset
+1. Partition dataset into train and test sets
 ```bash
 python -m data.dataset
 ```
@@ -22,7 +22,7 @@ python -m data.dataset
 1. Run trainer to fine-tune Resnet-18
 ```bash
 NAME=my_session
-python -m primary.train.py \
+python -m primary.train \
 	--save_path "saves/$NAME.pth" \
 	--log_path "logs/$NAME.log"
 ```
