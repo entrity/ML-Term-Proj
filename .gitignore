@@ -3,8 +3,10 @@ ml-term-proj.sublime-*
 *.tmp
 *.npy
 *.pth
+*.txt
 tmp
 img
+logs
 __pycache__
 primary/shared
 data/stl10_binary

@@ -1,6 +1,6 @@
 from shared import util
 from shared import trainer
-import net
+from . import net
 
 if __name__ == '__main__':
 	args = util.init()

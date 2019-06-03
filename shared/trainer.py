@@ -1,6 +1,9 @@
 import torch, torch.nn as nn, numpy as np
 from torch.utils.data import DataLoader
 import sys, os, logging, datetime
+from collections import deque
+import shared.kl_loss as kl_loss
+import data.dataset
 
 class Trainer(object):
 	def __init__(self, trainloader, testloader, net, optim, state, **kwargs):
@@ -9,11 +12,12 @@ class Trainer(object):
 		self.net = net
 		self.optim = optim
 		self.scheduler = kwargs.get('scheduler', None)
-		self.loss_fn = nn.MSELoss()
+		self.loss_fn = kl_loss.compute_kl_div_loss
 		self.test_every = kwargs.get('test_every', 100)
 		self.print_every = kwargs.get('print_every', 100)
 		self.save_every  = kwargs.get('save_every', 1)
 		self.save_path   = kwargs['save_path']
+		self.k_clusters  = kwargs.get('k_clusters', 10)
 		self._tics = []
 
 	def run(self, n_epochs, epoch_i=0, best_test=999999):
@@ -45,16 +49,16 @@ class Trainer(object):
 		self.optim.zero_grad()
 		loss = self._loss(batch)
 		loss.backward()
-		optim.step()
+		self.optim.step()
 		self.batch_losses.append(loss.item())
 		tictoc = self.toc()
-		if self.print_every and self.iter_i % self.print_every:
+		if self.print_every and self.iter_i % self.print_every == 0:
 			self.print('TRAIN', loss.item(), tictoc)
 
 	def _loss(self, batch):
-		X = batch
-		y = self.net(X)
-		return self.loss_fn(y, X)
+		X = batch['X'].cuda()
+		embedding = self.net(X)
+		loss = self.loss_fn(embedding, self.k_clusters)
 
 	def _loss_for_dataloader(self, dataloader, mode):
 		self.tic()
@@ -90,29 +94,30 @@ class Trainer(object):
 	def print(self, mode, loss, tictoc):
 		logging.info('%6s  %4d:%-7d %e %s' % (mode, self.epoch_i, self.iter_i, loss, str(tictoc)))
 
-	def save_model(suffix=None):
+	def save_model(self, suffix=None):
 		if suffix is not None:
 			pre, post = os.path.splitext(self.save_path)
 			save_path = pre + suffix + post
 		else:
 			save_path = self.save_path
 		torch.save({
-			'state_dict': master_net.state_dict(),
-			'optim_dict': trainer.optim.state_dict(),
-			'sched_dict': trainer.scheduler.state_dict() if trainer.scheduler is not None else None,
-			'best_test': trainer.best_test,
-			'iter_i': trainer.iter_i,
-			'epoch_i': trainer.epoch_i,
-			'batch_i': trainer.batch_i,
+			'state_dict': self.net.state_dict(),
+			'optim_dict': self.optim.state_dict(),
+			'sched_dict': self.scheduler.state_dict() if self.scheduler is not None else None,
+			'best_test': self.best_test,
+			'iter_i': self.iter_i,
+			'epoch_i': self.epoch_i,
+			'batch_i': self.batch_i,
 			}, save_path)
 
 def run(args, net, **kwargs):
+	net.cuda()
 	# Make dirs
 	os.makedirs(os.path.dirname( args.save_path ), exist_ok=True)
 	os.makedirs(os.path.dirname( args.log_path ), exist_ok=True)
 	# Load datasets
-	trainset = kwargs['trainset'] if 'trainset' in kwargs else shared.dataset.Dataset(args.train)
-	testset  = kwargs['testset']  if 'testset'  in kwargs else shared.dataset.Dataset(args.test)
+	trainset = kwargs['trainset'] if 'trainset' in kwargs else data.dataset.SavedDataset(args.train)
+	testset  = kwargs['testset']  if 'testset'  in kwargs else data.dataset.SavedDataset(args.test)
 	# Make dataloaders
 	trainloader = DataLoader( trainset, batch_size=args.train_bs, shuffle=True )
 	testloader  = DataLoader( testset,  batch_size=args.test_bs )
@@ -129,4 +134,4 @@ def run(args, net, **kwargs):
 		save_path=args.save_path,
 		test_every=args.test_every, print_every=args.print_every, save_every=args.save_every)
 	# Train
-	trainer.run(args.ep, state.get('epoch_i'), state.get('best_test'))
+	trainer.run(args.ep, state.get('epoch_i', 0), state.get('best_test', 9999999))

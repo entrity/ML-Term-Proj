@@ -12,7 +12,7 @@ def new():
 
 def load(fpath):
 	data = torch.load(fpath)
-	resnet18 = modules.resnet18(pretrained=False)
+	resnet18 = models.resnet18(pretrained=False)
 	net = Net(resnet18)
 	logging.info('Loading model state dict...')
 	net.load_state_dict( data['model_state_dict'] )
@@ -26,6 +26,10 @@ class Net(nn.Module):
 		for name, module in resnet18.named_children():
 			if name == 'fc': break
 			self.features.add_module(name, module)
+
+	def forward(self, x):
+		x = self.features(x)
+		return x
 
 if __name__ == '__main__':
 	logging.basicConfig(level=logging.DEBUG)
