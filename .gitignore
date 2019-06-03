@@ -4,4 +4,8 @@ ml-term-proj.sublime-*
 *.npy
 *.pth
 tmp
+img
 __pycache__
+primary/shared
+data/stl10_binary
+data/stl10_binary.tar.gz
