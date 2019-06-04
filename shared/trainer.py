@@ -22,20 +22,24 @@ class Trainer(object):
 		self.k_clusters  = kwargs.get('k_clusters', 10)
 		self._tics = []
 
-	def run(self, n_epochs, epoch_i=0, best_test=999999):
+	def run(self, n_epochs, **kwargs):
 		self.net.train()
-		self.iter_i       = 0
-		self.best_test    = best_test
+		self.best_test    = kwargs.get('best_test', 999999) or 999999
+		self.best_acc     = kwargs.get('best_acc', 0) or 0
+		self.epoch_i      = kwargs.get('epoch_i', 0) or 0
+		self.batch_i      = kwargs.get('batch_i', 0) or 0
+		self.iter_i       = kwargs.get('iter_i', 0) or 0
 		self.test_losses  = []
 		self.train_losses = []
 		self.batch_losses = deque(maxlen=1000)
+		print('Running entire dataset to get initial loss...')
 		self.log_epoch_loss()
 		if self.testloader is not None: self.test()
-		for self.epoch_i in range(epoch_i, n_epochs):
+		for self.epoch_i in range(self.epoch_i, n_epochs):
 			self.train_epoch()
-			if self.epoch_i % self.save_every == 0:
-				self.save_model('epoch_end')
-		
+			if self.save_every and self.epoch_i % self.save_every == 0:
+				self.save_model('_epoch_end')
+
 	def train_epoch(self):
 		self.tic()
 		for self.batch_i, batch in enumerate(self.trainloader):
@@ -85,8 +89,8 @@ class Trainer(object):
 	def test(self):
 		loss = self._loss_for_dataloader(self.testloader, 'TEST')
 		self.test_losses.append(loss)
-		if loss < self.best_test:
-			self.best_test = loss
+		if self.acc > self.best_acc:
+			self.best_acc = self.acc
 			self.save_model()
 		if self.scheduler is not None:
 			self.scheduler.step(loss)
@@ -118,6 +122,7 @@ class Trainer(object):
 			'optim_dict': self.optim.state_dict(),
 			'sched_dict': self.scheduler.state_dict() if self.scheduler is not None else None,
 			'best_test': self.best_test,
+			'best_acc': self.best_acc,
 			'iter_i': self.iter_i,
 			'epoch_i': self.epoch_i,
 			'batch_i': self.batch_i,
@@ -147,4 +152,4 @@ def run(args, net, **kwargs):
 		save_path=args.save_path,
 		test_every=args.test_every, print_every=args.print_every, save_every=args.save_every)
 	# Train
-	trainer.run(args.ep, state.get('epoch_i', 0), state.get('best_test', 9999999))
+	trainer.run(args.ep, epoch_i=state.get('epoch_i'), best_test=state.get('best_test'), best_acc=state.get('best_acc'))

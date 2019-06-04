@@ -3,10 +3,14 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 
-def new():
-	logging.getLogger().info('Downloading Resnet-18...')
-	resnet18 = models.resnet18(pretrained=True)
-	logging.getLogger().info('Resnet-18 downloaded.')
+def new(pretrained=True):
+	if pretrained:
+		logging.info('Downloading Resnet-18...')
+	else:
+		logging.info('Getting untrained Resnet-18...')
+	resnet18 = models.resnet18(pretrained=pretrained)
+	if pretrained:
+		logging.info('Resnet-18 downloaded.')
 	net = Net(resnet18)
 	return net
 
