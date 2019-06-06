@@ -13,7 +13,7 @@ class Trainer(generic_trainer.Trainer):
 		else:
 			save_path = self.save_path
 		torch.save({
-			'state_dict': self.net.state_dict(),
+			'state_dict': self.master_model.state_dict(),
 			'optim_dict': self.optim.state_dict(),
 			'sched_dict': self.scheduler.state_dict() if self.scheduler is not None else None,
 			'best_test': self.best_test,
@@ -21,12 +21,11 @@ class Trainer(generic_trainer.Trainer):
 			'iter_i': self.iter_i,
 			'epoch_i': self.epoch_i,
 			'batch_i': self.batch_i,
-			'arch': self.net.arch,
+			'arch': self.master_model.arch,
 			}, save_path)
 
 class Runner(object):
 	def __init__(self, trainer_factory):
-		self.trainer_factory = trainer_factory
 		self.args = util.init(add_args)
 		# Get data
 		self.trainset = sae.dataset.SavedDataset(self.args.train)

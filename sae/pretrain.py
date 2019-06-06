@@ -1,8 +1,7 @@
 import os, torch, logging
 from . import trainer as sae_trainer
-from shared import trainer as generic_trainer
 
-class PreTrainer(generic_trainer.Trainer):
+class PreTrainer(sae_trainer.Trainer):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.mse_loss = torch.nn.MSELoss()
@@ -28,9 +27,14 @@ if __name__ == '__main__':
 	runner = sae_trainer.Runner(PreTrainer)
 
 	master_model = runner.model
+	def trainer_factory(*args, **kwargs):
+		trainer = PreTrainer(*args, **kwargs)
+		trainer.master_model = master_model
+		return trainer
+	runner.trainer_factory = trainer_factory
 
+	# Run Runner for each level of SAE
 	for n in range(1, len(runner.args.arch)):
-
 		runner.args.lr = 1e-1
 		runner.model = master_model.subnet(n)
 		logging.info(' Running with subnet %d' % (n))

@@ -36,8 +36,8 @@ python -m sae.dataset
 
 1. Pretrain SAE
 ```bash
-rm logs/sae-pretrain.log
 NAME=sae-pretrain
+rm "logs/$NAME.log"
 python -m sae.pretrain \
 	--ep 5000 \
 	--lr 1e-1 \
@@ -48,14 +48,14 @@ python -m sae.pretrain \
 ```
 
 1. Fine-tune SAE's encoder
-
 ```bash
-NAME=sae-session
+NAME=sae-finetune
 python -m sae.finetune \
-	--ep 10 \
-	--lr 1e-4 \
+	--ep 5000 \
+	--lr 1e-1 \
 	--test_every 0 \
 	--print_every 0 \
+	--load_path "saves/sae-pretrain.pth" \
 	--save_path "saves/$NAME.pth" \
 	--log_path "logs/$NAME.log"
 ```
