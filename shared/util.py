@@ -1,6 +1,9 @@
 import os
 import logging
 import argparse
+import torch
+
+USE_CUDA = torch.cuda.is_available()
 
 def is_path_ok(path):
 	return path is not None and len(path) and os.path.exists(path)
@@ -24,9 +27,9 @@ def default_arg_parser():
 	periods.add_argument('--save_every', type=int, default=1, help='Save a checkpoint after every *k* epochs. 0 will disable these periodic saves')
 	hyperparams = parser.add_argument_group('Hyperparameters')
 	hyperparams.add_argument('--lr', type=float, default=1e-2)
-	hyperparams.add_argument('--train_bs', type=int, default=64)
-	hyperparams.add_argument('--test_bs', type=int, default=64)
-	hyperparams.add_argument('--ep', default=1000, type=int, help='Max epochs to train')
+	hyperparams.add_argument('--train_bs', type=int, default=256)
+	hyperparams.add_argument('--test_bs', type=int, default=256)
+	hyperparams.add_argument('--ep', default=128, type=int, help='Max epochs to train')
 	others = parser.add_argument_group('Other')
 	others.add_argument('-c', '--do_continue', action='store_true', help='Dictates whether to load optim dict, scheduler dict, epoch_i')
 	return parser

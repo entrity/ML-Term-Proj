@@ -67,7 +67,10 @@ class Trainer(object):
 		X = batch['X'].cuda()
 		embedding = self.net(X)
 		kmeans = KMeans(self.k_clusters)
-		kmeans.fit(embedding.data.cpu().squeeze(2).squeeze(2).numpy())
+		numpy_data = embedding.data.cpu().numpy()
+		while len(numpy_data.shape) > 2:
+			numpy_data = numpy_data.squeeze(2)
+		kmeans.fit(numpy_data)
 		loss = self.loss_fn(embedding, kmeans)
 		if do_acc:
 			acc_calc = shared.accuracy.Computer(self.k_clusters, batch['y'])
@@ -148,7 +151,8 @@ def run(args, net, **kwargs):
 	else:
 		state = {}
 	# Build trainer
-	trainer = Trainer(trainloader, testloader, net, optim, state,
+	trainer_factory = kwargs.get('trainer_factory', Trainer)
+	trainer = trainer_factory(trainloader, testloader, net, optim, state,
 		save_path=args.save_path,
 		test_every=args.test_every, print_every=args.print_every, save_every=args.save_every)
 	# Train

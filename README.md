@@ -27,12 +27,50 @@ python -m primary.train \
 	--log_path "logs/$NAME.log"
 ```
 
+## SAE approach
+
+1. Prepare dataset
+```bash
+python -m sae.dataset
+```
+
+1. Pretrain SAE
+```bash
+NAME=sae-session
+python -m sae.pretrain \
+	--ep 10 \
+	--lr 1e-4 \
+	--test_every 0 \
+	--print_every 0 \
+	--save_path "saves/$NAME.pth" \
+	--log_path "logs/$NAME.log"
+```
+
+1. Fine-tune SAE's encoder
+
+```bash
+NAME=sae-session
+python -m sae.finetune \
+	--ep 10 \
+	--lr 1e-4 \
+	--test_every 0 \
+	--print_every 0 \
+	--save_path "saves/$NAME.pth" \
+	--log_path "logs/$NAME.log"
+```
+
 ## TODO
 
-1. Split dataset
-1. Write dataset module
+1. Subclass trainer to give a _loss function that doesn't use fine-tuning (KL Div loss) but instead performs reconstruction loss for SAE
 
 ## DONE
 
+1. Add SAE net, trainer to project
+1. Extract HOG features
+1. Make dataset for SAE training
+1. Show ACC in trainer
+1. Hyperparam search
+1. Split dataset
+1. Write dataset module
 1. Write ACC computation
 1. Write trainer to fine tune resnet-18 feature extractor
