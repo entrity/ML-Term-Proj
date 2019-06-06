@@ -52,11 +52,15 @@ def compute_kl_div_loss(embeddings, kmeans):
 	assert_shape(q_numerators, [I,J])
 
 	# Compute q denominator
-	q_denominator = torch.sum(q_numerators)
-	assert 0 == q_denominator.dim(), q_denominator.shape
+	q_denominator_differences = torch.add(embeddings_tensor, -1, q_centroids)
+	q_denominator_sq_distances = torch.norm(q_denominator_differences, p=2, dim=2)
+	assert_shape(q_numerator_sq_distances, [I,J])
+	
+	q_denominators = torch.sum(q_numerators, (1,)).view(-1,1)
+	assert_shape(q_denominators, [I,1])
 
 	# Compute q
-	q = torch.div( q_denominator, q_numerators )
+	q = torch.div( q_numerators, q_denominators )
 	assert_shape(q, [I,J])
 
 	# Compute p numerator
@@ -68,11 +72,11 @@ def compute_kl_div_loss(embeddings, kmeans):
 	assert_shape(p_numerators, [I,J])
 
 	# Computer p denominator
-	p_denominator = torch.sum(p_numerators)
-	assert 0 == p_denominator.dim(), p_denominator.shape
+	p_denominators = torch.sum(p_numerators, (1,)).view(-1,1)
+	assert_shape(p_denominators, [I,1])
 
 	# Compute p
-	p = torch.div( p_numerators, p_denominator )
+	p = torch.div( p_numerators, p_denominators )
 	assert_shape( p, [I,J] )
 
 	# Compute KL Divergence
