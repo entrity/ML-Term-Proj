@@ -1,56 +1,37 @@
 import os, torch, logging
-from shared import util
-from shared import trainer
-from . import net
-import sae.dataset
+from . import trainer as sae_trainer
+from shared import trainer as generic_trainer
 
-class Trainer(trainer.Trainer):	
-	def save_model(self, suffix=None):
-		if suffix is not None:
-			pre, post = os.path.splitext(self.save_path)
-			save_path = pre + suffix + post
-		else:
-			save_path = self.save_path
-		torch.save({
-			'state_dict': self.net.state_dict(),
-			'optim_dict': self.optim.state_dict(),
-			'sched_dict': self.scheduler.state_dict() if self.scheduler is not None else None,
-			'best_test': self.best_test,
-			'best_acc': self.best_acc,
-			'iter_i': self.iter_i,
-			'epoch_i': self.epoch_i,
-			'batch_i': self.batch_i,
-			'arch': self.net.arch,
-			}, save_path)
+class PreTrainer(generic_trainer.Trainer):
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.mse_loss = torch.nn.MSELoss()
 
-def load_model(load_path):
-	dump = torch.load(load_path)
-	model = net.Net(arch=dump['arch'])
-	model.load_state_dict( dump['state_dict'] )
-	return model
+	def _loss(self, batch, do_acc=False):
+		X = batch['X'].cuda()
+		out = self.net(X)
+		loss = self.mse_loss(out, X)
+		if do_acc: self.acc = -1
+		return loss
 
-def add_args(parser):
-	parser.add_argument('--arch', default=[1296,500,500,2000,10], nargs='+', type=int, help='Dimensions for stacked autoencoders')
-	parser.set_defaults(train='data/hog-train', test='data/hog-test')
+	def test(self):
+		loss = self._loss_for_dataloader(self.testloader, 'TEST')
+		self.test_losses.append(loss)
+		if loss.item() < self.best_test:
+			self.best_test = loss.item()
+			self.save_model()
+		if self.scheduler is not None:
+			self.scheduler.step(loss)
+
 
 if __name__ == '__main__':
-	args = util.init(add_args)
-	# Get data
-	trainset = sae.dataset.SavedDataset(args.train)
-	testset  = sae.dataset.SavedDataset(args.test)
-	# Get model
-	if args.load_path is not None:
-		model = load_model(args.load_path)
-	else:
-		model = net.Net(arch=args.arch)
+	runner = sae_trainer.Runner(PreTrainer)
 
-	# Greedy layer-wise training
-	trainer.run(args, model.subnet(1),
-		trainset=trainset, testset=testset,
-		trainer_factory=Trainer)
+	master_model = runner.model
 
-	logging.info('Break in action')
+	for n in range(1, len(runner.args.arch)):
 
-	trainer.run(args, model.subnet(1),
-		trainset=trainset, testset=testset,
-		trainer_factory=Trainer)
+		runner.args.lr = 1e-1
+		runner.model = master_model.subnet(n)
+		logging.info(' Running with subnet %d' % (n))
+		runner.run()

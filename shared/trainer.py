@@ -44,12 +44,12 @@ class Trainer(object):
 		self.tic()
 		for self.batch_i, batch in enumerate(self.trainloader):
 			self.train_batch(batch)
-			if self.test_every and self.iter_i % self.test_every and self.testloader is not None:
+			if self.test_every > 0 and self.iter_i % self.test_every and self.testloader is not None:
 				self.test()
 			self.iter_i += 1
 		self.toc()
 		self.log_epoch_loss()
-		if self.testloader is not None: self.test()
+		if self.testloader is not None and self.test_every >= 0: self.test()
 		self.epoch_i += 1
 
 	def train_batch(self, batch):
@@ -141,7 +141,7 @@ def run(args, net, **kwargs):
 	testset  = kwargs['testset']  if 'testset'  in kwargs else data.dataset.SavedDataset(args.test)
 	# Make dataloaders
 	trainloader = DataLoader( trainset, batch_size=args.train_bs, shuffle=True )
-	testloader  = DataLoader( testset,  batch_size=args.test_bs )
+	testloader  = DataLoader( testset,  batch_size=args.test_bs, shuffle=False )
 	# Build optimizer
 	optim = torch.optim.SGD( net.parameters(), lr=args.lr )
 	# Load from dump

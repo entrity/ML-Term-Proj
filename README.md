@@ -36,10 +36,11 @@ python -m sae.dataset
 
 1. Pretrain SAE
 ```bash
-NAME=sae-session
+rm logs/sae-pretrain.log
+NAME=sae-pretrain
 python -m sae.pretrain \
-	--ep 10 \
-	--lr 1e-4 \
+	--ep 5000 \
+	--lr 1e-1 \
 	--test_every 0 \
 	--print_every 0 \
 	--save_path "saves/$NAME.pth" \
