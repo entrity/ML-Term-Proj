@@ -1,0 +1,77 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{import}
+\usepackage{bbm}
+
+\title{ECS 271 - Hypothesis and Experimental Design}
+\author{Markham Anderson}
+\date{June 2019}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+When meeting with Bokun, we supplanted the project proposal I submitted earlier in the term with a new one: spectral clustering on complex image data.
+
+The DEC paper \cite{xie2016unsupervised} demonstrated that clustering can be improved by operating on a learned embedding. The crux of the learned embedding is that unsupervised learning cannot benefit from labels, so the loss function used to train the neural network that produces the embedding is the KL divergence between two distributions: the network's current distribution of outputs and a tweak of this same distribution in which the weight of data points whose confidence is high (i.e. which are near to a centroid) is increased and in which disproportionately large clusters lose potency.
+
+\section{Hypothesis}
+
+\cite{xie2016unsupervised}'s results exceeded those of $k$-means clustering and orindary spectral clustering in experiments on three datasets: MNIST, STL-10, and REUTERS. However, \cite{xie2016unsupervised}'s learned its embedding by training stacked autoencoders (SAE's), which are not well suited to complex image data.
+
+I hypothesize that clustering on an embedding extracted from an image classifier fine-tuned on the KL divergence loss propounded by \cite{xie2016unsupervised} would surpass other designs on a complex image set.
+
+Although \cite{xie2016unsupervised} made use of STL-10 for one of their datasets and STL-10 is a set of 96-x-96 colour images, their experiments did not attempt to cluster this image data directly. Instead, all of the algorithms which they compared were run on HOG features of the images.
+
+My project sets out to discover whether and to what extent features extracted from a classifier improve performance of clustering on image data, compared with the embedding from \cite{xie2016unsupervised}'s SAE. If indeed the former surpasses the latter, what is the trade-off in accuracy versus the cost of the model?
+
+\section{Experimental Design}
+
+There are several approaches worth comparing in the task of clustering image data, and I will attempt to replicate the work of as many of these as time permits. However, in the event that I do not find the time, I will implement only the classifier-based approach described below and simply compare my results with published results from two of them: DEC \cite{xie2016unsupervised} and DAC \cite{chang2017deep}.
+
+\subsection{Dataset}
+
+The only complex image data on which both of the foregoing papers provide experimental results is STL-10, so that is the dataset on which I will experiment, though I will perhaps end up using only a subset thereof in order to work within my resource and time constraints.
+
+This choice of dataset dictates $k = 10$ for my clustering. % Room for more discussion here.
+
+\subsection{Classifier-based approach}
+
+The features for this approach will be taken from the penultimate layer of a pre-trained Resnet-18. Following the approach established by \cite{xie2016unsupervised}, I will fine tune the feature-extractor using the unsupervised KL Divergence loss, which gives the following definitions for $p$ and $q$:
+
+$$q_{ij} = 
+\frac
+{(1 + ||z_i - \mu_j||^2)}
+{\sum_{j'}(1 + ||z_i - \mu_{j'}||^2)}
+$$
+
+$$
+p_{ij} = \frac{q^2_{ij} / f_j}{ \sum_{j'}q^2_{ij'} / f_j' }
+$$
+
+where $z_i$ is an embedding for data point $x_i$, $\mu_j$ is the centroid for cluster $j$, and $f_j$ is the soft cluster frequency $\sum_i q_{ij}$.
+
+This loss function imposes a challenge: unlike loss functions suited to supervised learning, for which a deep network can eventually converge even when the batch size is inappropriately small, under the KL Divergence loss, a small batch size may prevent the learner from ever making any progress. The loss is wholly contingent on the distribution of the batch, not the individual values in the batch. Moreover, the number of clusters $k$ is fixed, and the batch must be large enough to effectively represent \textit{all} of the clusters. This drives memory requirements upward and constraints that $k$ be small.
+
+After fine-tuning, I will run $k$-means clustering on the embeddings, then make use of the ``unsupervised clustering accuracy" metric ($ACC$) which \cite{xie2016unsupervised} uses:
+
+$$
+ACC = max_m \frac{\sum_{i=1}^n \mathbbm{1}\{l_i = m(c_i)\}}{n}
+$$
+
+I will perform an ablation study, clustering on the pre-trained features without fine-tuning the feature extractor in order to evaluate how much of the improvement (or shortfall) comes from the classifier's features. Because both this approach and \cite{xie2016unsupervised} rely on the unsupervised KL Divergence loss, the efficacy of the models rely on the deep networks' pre-trained features \textit{per se} being reasonably effective for clustering.
+
+\subsection{Alternative approaches}
+
+The baseline approach is \textbf{DEC}, which is described with some detail in the Hypothesis section and in the Classifier-based approach subsection above. \cite{xie2016unsupervised} performs greedy layer-wise training on a 5-block SAE. They use dropout with $p=0.2$. They use ReLU activations except for the final layer of the decoder and the final layer of the encoder. Afterward, they fine-tune the encoder using the KL Divergence loss described above.
+
+The weakness of applying an MLP such as \cite{xie2016unsupervised} used in their SAE to image data leaves room for the possibility that a \textbf{convolutional autoencoder} \cite{masci2011stacked} might achieve competitive clustering results. This approach is intriguing because it requires no labelled data at all, whereas the use of a classifier requires a pre-trained model which at some point was given labelled data, if only from a different domain than the experimental data. One conceptual weakness of this approach is that spatial sensitivity of the embeddings may undermine the efficacy of spectral clustering.
+
+Deep Adaptive Clustering (\textbf{DAC}) \cite{chang2017deep} was presented on ConvNets specifically for clustering image data. It seeks to drive the feature embedding toward a one-hot vector, which makes pairwise judgements quite simple: if the cosine distance between a given two images' feature embeddings is approximately 1, they belong in the same cluster; if it is approximately 0, they belong in different clusters. The critical distinction between this approach and the classifier-based approach is the loss function: DAC uses a pairwise loss function, and the classifier-based approach uses a loss function which requires an entire mini-batch; DAC's loss pushes the feature vectors toward one-hot encodings, and the classifier-based approach makes no constraints on the nature of the vectors.
+
+\bibliographystyle{plain}
+\bibliography{citations}
+
+\end{document}

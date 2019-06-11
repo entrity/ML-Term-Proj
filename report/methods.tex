@@ -1,0 +1,20 @@
+\section{Hypothesis}
+
+\cite{xie2016unsupervised}'s results with DEC surpassed those of baseline clustering methods in experiments on three datasets: MNIST, STL-10, and REUTERS. However \cite{xie2016unsupervised} learned its embedding by training stacked autoencoders (SAE's), which are not well suited to complex image data. I hypothesize that substituting an image classifier for the SAE's would result in a model superior to other designs on a complex image set. Whereas the embedding are extracted from the bottleneck of the SAE's, the image classifier provides an embedding at its penultimate layer.
+
+Although \cite{xie2016unsupervised} made use of STL-10 for one of their datasets and STL-10 is in fact a set of 96-x-96 colour images, their experiments did not attempt to cluster this image data directly. Instead, all of the algorithms which they compared were run on HOG features of the images.
+
+My project sets out to discover whether and to what extent features extracted from a classifier improve performance of clustering on image data, compared with the embedding from \cite{xie2016unsupervised}'s SAE. If indeed the former surpasses the latter, I intend to evaluate the trade-off in accuracy versus the cost of the model.
+
+\section{Method}
+
+Choosing from among the approaches discussed in the related work section, I elected to proceed with DEC and eschew the more performant DSCL because I am concerned only with the unsupervised setting. I opt for DEC over DAC so that I may work within a more traditional clustering framework, whereas DAC implements pairwise inference.
+
+\fbox{\begin{minipage}{32em} \setlength{\parindent}{10pt}
+The foregoing rationale may seem a bit thin and leave you wondering why my rationale went no further than that. The truth is that most of the explanation for my decision to simply modify the experiments in \cite{xie2016unsupervised} lies in my personal circumstance this quarter.
+
+Although we have been encouraged to use our existing lab work as the material for this term project, it was not possible for me. This is my final term at school because I have opted to find a job and shift my focus to building a new family. My most recent project for my advisor concluded in March, and because I could not make meaningful progress on a new one before the school year ended, I left my lab and filled my schedule with classes which interest me.
+
+In part because of my job search, I have been absent this quarter on several occasions for up to six days at a time, so I have been working to catch up quite a lot, which imposed time constraints on my project. 
+\end{minipage}}
+

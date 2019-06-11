@@ -1,0 +1,58 @@
+\section{Results}
+
+Results were erratic, suggestive of a problem in my implementation, which I discuss in the Discussion section below.
+
+\begin{figure}[h]
+\caption{$ACC$ and loss recorded across epochs of fine-tuning for embedding from SAE}
+\centering
+\includegraphics[width=6cm]{sae-finetune-acc}
+\includegraphics[width=6cm]{sae-finetune-loss.png}
+\end{figure}
+
+\begin{figure}[h]
+\caption{$ACC$ and loss recorded across epochs of fine-tuning for embedding from pre-trained Resnet-18}
+\centering
+\includegraphics[width=6cm]{pret-1e-5-acc}
+\includegraphics[width=6cm]{pret-1e-5-loss}
+\end{figure}
+
+\begin{figure}[h]
+\caption{$ACC$ and loss recorded across epochs of fine-tuning for embedding from randomly-initialized Resnet-18}
+\centering
+\includegraphics[width=6cm]{rand-1e-5-acc}
+\includegraphics[width=6cm]{rand-1e-5-loss}
+\end{figure}
+
+The performance of the fine-tuned SAE's appears to be more stable, but in fact its $ACC$ and loss are far worse than those of the pre-trained Resnet-18: the former's $ACC$ floats around 0.23; the latter's floats around 0.8.
+
+The graphs for the Resnet-18 implementation appear to show no evidence of learning, but in fact, repeated experiments demonstrate that the model begins with an $ACC$ of only about 0.21 (for both training and testing sets) but consistently reaches the neighbourhood of 0.75 after the first epoch of fine-tuning.
+
+\section{Discussion}
+
+I consider the uselessness of the foregoing results in two ways: (1) I attempt to diagnose weaknesses in my approach, based on the results and (2) I share what I learned after looking at Bokun's code (which I obtained this very morning).
+
+\subsection{Analysis of my approach}
+
+The fact that I was unable to reproduce \cite{xie2016unsupervised}'s favourable results during my SAE experiments indicates that my implementation was flawed.
+
+The extreme instability we observe in both loss and $ACC$ during training might suggest a poorly chosen learning rate, but in fact, I experimented with learning rates between the extremely high 1e-1 and the ludicrously low 1e-19. I furthermore separated learning rates for pre-training (the SAE) and fine-tuning (the encoder).
+
+One troubling observation is a lack of signs of overfitting on my SAE. This could be an indicator that my MLP was simply too small. However, the fact that there was likewise no overfitting when fine-tuning my Resnet-18 suggests that something else was at play. Having ruled out a poor choice of learning rate, I consider whether my dataset partition was poor: if each test example is extremely well correlated with one or more examples from the training set, then the model could overfit without showing any evidence during testing. I don't believe this to be the case, however; indeed, a perusal of STL-10 reveals a variety of natural images with no near matches.
+
+One important consideration is the choice of batch size, which I discussed in section \ref{approach1}: any batch whose distribution does not match that of the entire dataset (particularly if it excludes one of the ground-truth clusters) can contribute no learning opportunity for the model. This vulnerability comes into play only because of the vision of Xie et al.'s implementation that I gleaned from their paper: for each batch, I ran $k$-means clustering to obtain a distribution $q$, then computed $p$ from $q$ using equation \ref{eq:p}, then computed the KL divergence and backpropagated a loss.
+
+In the sub-section to follow, I describe my delay in obtaining Bokun's implemenation and how that implementation differs from my own.
+
+\subsection{Lessons learned from Bokun's implementation}
+
+I am grateful to Bokun for making time at this late hour to help me understand the approach I should have used for this project.
+
+I obtained Bokun's implementation of DEC today (the due date for this report). I had been once again out of town until last night, so I was unable to take advantage of office hours between the time that I realized that my implementation was problematic and this very day.
+
+Bokun's code at \hyperlink{https://github.com/eelxpeng/dec-pytorch}{https://github.com/eelxpeng/dec-pytorch} offers two significant differences from mine: (1) the network outputs the distribution $q$ and (2) $p$ is not computed on a batch-per-batch basis.
+
+To clarify the first point, equation \ref{eq:q} is not explicitly calculated. Instead, the network's output is treated as the values $q_{ij}$; each output node represents one cluster $j$ for an input example $i$.
+
+To clarify the second point, distribution $p$ is not computed individually at every batch; rather, at intervals of one or more epochs, the values $q_{ij}$ are computed for the entire dataset, and then $p$ is computed according to equation \ref{eq:p}. This tensor $p$ is used in the calculation of the KL divergence for one or more training epochs to follow.
+
+I believe that following the example of Bokun's implementation would lead me to favourable results, but a final exam and a doctors appointment scheduled for today preclude further work at this time.

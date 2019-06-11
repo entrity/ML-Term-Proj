@@ -1,0 +1,5 @@
+\section{Conclusion}
+
+I cannot conclude whether or to what extent the pretrained image classifier is of more use than the stacked autoencoder when clustering with the KL divergence loss in the domain of complex image data. However, I believe that I have learned how to work with a distribution-based loss when training a machine learning model.
+
+I believe that my earlier proposed use of a convolutional autoencoder in place of \cite{xie2016unsupervised}'s SAE's remains intriguing because it requires no labelled data at all, whereas my use of a classifier requires a pre-trained model which at some point was given labelled data, if only from a different domain than the experimental data. If carrying out the experiment with a convolutional autoencoder, the straightforward approach would be to perform global average pooling at the end of the encoder to make each output channel into a single feature.

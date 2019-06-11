@@ -1,0 +1,50 @@
+\subsection{Dataset}
+
+In order to compare my results with those of both DEC and DAC, I elected to use STL-10. It was the only complex image data on which both of the foregoing papers provided experimental results.
+
+STL-10 contains 5000 images of 96-by-96 pixels, categorized into 10 classes.
+
+This choice of dataset dictated $k = 10$ for my clusters. Polymorphism within categories suggests that a model may fare better by learning more clusters than there are labels, but doing so would make evaluating the accuracy of the learned clusters against the ground-truth labels impractical.
+
+In an effort to work within my time and scheduling constraints, I forewent cross-validation and proceeded with only a partition between training data and testing data, with a training set of 90\% of the available examples (i.e. 4500 images) and a test set of the remaining 10\%.
+
+\subsection{Approach: DEC with embedding from classifier} \label{approach1}
+
+The embedding for this approach was be taken from the penultimate layer of a pre-trained Resnet-18. I opted for this architecture because its low computational cost afforded rapid training, and its small size was a deterrent to overfitting on the limited STL-10 dataset. \cite{canziani2016analysis}
+
+Following the approach established by \cite{xie2016unsupervised}, I fine-tuned the feature-extractor using an unsupervised KL Divergence loss, which gives the following definitions for $p$ and $q$:
+
+\begin{equation} \label{eq:q}
+q_{ij} = 
+\frac
+{(1 + ||z_i - \mu_j||^2)}
+{\sum_{j'}(1 + ||z_i - \mu_{j'}||^2)}
+\end{equation}
+
+\begin{equation} \label{eq:p}
+p_{ij} = \frac{q^2_{ij} / f_j}{ \sum_{j'}q^2_{ij'} / f_j' }
+\end{equation}
+
+where $z_i$ is an embedding for data point $x_i$, $\mu_j$ is the centroid for cluster $j$, and $f_j$ is the soft cluster frequency $\sum_i q_{ij}$.
+
+This loss function imposes a challenge: unlike loss functions suited to supervised learning, for which a deep network can eventually converge even when the batch size is inappropriately small, under the KL Divergence loss, a small batch size may prevent the learner from ever making any progress. The loss is wholly contingent on the distribution of the batch, not the individual values in the batch. Moreover, the number of clusters $k$ is fixed, and the batch must be large enough to effectively represent \textit{all} of the clusters. This drives memory requirements upward and constraints that $k$ be small.
+
+After fine-tuning, I ran $k$-means clustering on the embeddings, then made use of the ``unsupervised clustering accuracy" metric ($ACC$) which \cite{xie2016unsupervised} uses:
+
+\begin{equation} \label{eq:acc}
+ACC = max_m \frac{\sum_{i=1}^n \mathbbm{1}\{l_i = m(c_i)\}}{n}
+\end{equation}
+
+I further performed an ablation study, clustering on the pre-trained features without fine-tuning the feature extractor in order to evaluate how much of the improvement (or shortfall) comes from the pretrained classifier's features themselves. Because both this approach and \cite{xie2016unsupervised} rely on the unsupervised KL Divergence loss, the efficacy of the models is in fact reliant on the deep networks' pre-trained features \textit{per se} being reasonably effective for clustering.
+
+To evaluate the sensitivity of the loss' need for a useful initial embedding, I also experimented on a non-pretrained (i.e. randomly initialized) Resnet-18.
+
+I conducted 10 experiments on each of the two types of Resnet-18.
+
+\subsection{Baseline: DEC with embedding from SAE}
+
+The baseline approach is DEC, which is described with some detail in the Hypothesis section and in the Approach subsection above. Following the design laid out in \cite{xie2016unsupervised}, I performed greedy layer-wise training on a 5-block SAE whose dimensions were 1296-500-500-2000-10. I use dropout with $p=0.2$. I used ReLU activations except for the final layer of the decoder and the final layer of the encoder. After training the SAE's, I fine-tuned the encoder using the KL Divergence loss described above.
+
+Although \cite{xie2016unsupervised} used $p=0.2$ for dropout, this design decision was not defended in their publication, so I have also experimented with $p=0.5$, which was empirically found in \cite{srivastava2014dropout} to be optimal generally.
+
+Another divergence which I made from their work was the outermost dimension of the SAE: \cite{xie2016unsupervised} indicates that all their experiments were run on a $d$-500-500-2000-10-dimensional SAE, with $d$ being the dimensionality of the input. However, the paper does not indicate how the HOG features were calculated. It's possible that they worked with as many as 5000+ dimensions for each input, but for my HOG calculation, I chose hyperparameters specifically for the purpose of reducing the dimensionality of the input so as not to lose too much information in the first layer of the SAE. A more thorough hyperparameter search would be indicated, given a longer timeline to experiment.
